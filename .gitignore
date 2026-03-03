@@ -1,0 +1,10 @@
+# Private data
+history.json
+
+# Optional exported analysis artifacts
+history-context-*.json
+batch-summary-*.md
+
+# OS/editor
+.DS_Store
+Thumbs.db

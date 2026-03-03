@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>浏览历史按天聚类总结</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --card-2: #f8faff;
+      --text: #1f2937;
+      --muted: #5b6b85;
+      --line: #d8e2f1;
+      --ok: #0e9f6e;
+      --warn: #c27803;
+      --bad: #d7263d;
+      --accent: #2563eb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: linear-gradient(160deg, #f8fbff 0%, #eef3fb 100%);
+      color: var(--text);
+    }
+
+    .container {
+      width: min(1280px, 96vw);
+      margin: 20px auto 40px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 6px 20px rgba(31, 41, 55, .08);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: #172554;
+    }
+
+    .muted { color: var(--muted); font-size: 12px; }
+
+    .field { margin-bottom: 10px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .field-date { cursor: pointer; }
+
+    input[type="text"], input[type="password"], input[type="date"], input[type="number"], textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px;
+      outline: none;
+    }
+
+    input[type="date"] { cursor: pointer; }
+    input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+    input[type="date"]::-webkit-datetime-edit { cursor: pointer; }
+
+    textarea { min-height: 88px; resize: vertical; }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    button {
+      border: 1px solid #b8c9ea;
+      background: #edf3ff;
+      color: #1e3a8a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover { filter: brightness(1.08); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .stat .k { font-size: 12px; color: var(--muted); }
+    .stat .v { font-size: 18px; font-weight: 700; margin-top: 3px; }
+
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 58vh;
+      background: #ffffff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e3ebf7;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #edf3ff;
+      z-index: 2;
+    }
+
+    tr:hover td { background: rgba(37,99,235,.08); }
+
+    .pill {
+      display: inline-block;
+      border: 1px solid #9db6ec;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #1e3a8a;
+      background: rgba(37,99,235,.10);
+    }
+
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: #ffffff;
+    }
+
+    details + details { margin-top: 10px; }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+      line-height: 1.55;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .right {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .tiny { font-size: 11px; color: var(--muted); }
+
+    .summary-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-small {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .batch-output {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="card">
+      <h1>浏览历史按天聚类总结</h1>
+      <p class="muted">单文件版：导入浏览器历史 JSON，按日期筛选，按网页聚类，并调用 LLM 自动总结。</p>
+
+      <div class="field">
+        <label for="fileInput">1) 导入历史 JSON（数组格式）</label>
+        <input id="fileInput" type="file" accept=".json,application/json" />
+      </div>
+
+      <div class="field">
+        <label for="timezoneInput">2) 时区</label>
+        <input id="timezoneInput" type="text" value="Asia/Shanghai" />
+      </div>
+
+      <div class="field field-date" id="dateFieldWrap">
+        <label for="dateInput">3) 选择日期</label>
+        <input id="dateInput" type="date" />
+      </div>
+
+      <div class="field">
+        <label for="clusterMode">4) 聚类方式（根据网页）</label>
+        <select id="clusterMode">
+          <option value="hostPath">域名 + 路径（推荐）</option>
+          <option value="host">仅域名</option>
+          <option value="fullUrl">完整 URL</option>
+        </select>
+      </div>
+
+      <div class="btn-row">
+        <button id="analyzeBtn" disabled>分析当天记录</button>
+        <button id="exportCtxBtn" disabled>导出 LLM 上下文</button>
+      </div>
+
+      <hr style="border-color:var(--line);border-width:1px 0 0;margin:12px 0;" />
+
+      <h2>LLM 总结配置</h2>
+
+      <div class="field">
+        <label for="endpointInput">Endpoint</label>
+        <input id="endpointInput" type="text" value="https://cerabras.571574085.xyz/v1/chat/completions" />
+      </div>
+
+      <div class="field">
+        <label for="apiKeyInput">API Key（Bearer 后面的值）</label>
+        <input id="apiKeyInput" type="password" placeholder="请输入 csk-..." />
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="modelInput">Model</label>
+          <input id="modelInput" type="text" value="qwen-3-235b-a22b-instruct-2507" />
+        </div>
+        <div class="field">
+          <label for="temperatureInput">Temperature</label>
+          <input id="temperatureInput" type="number" step="0.1" value="0.3" />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="maxTokensInput">max_tokens（可空）</label>
+          <input id="maxTokensInput" type="number" placeholder="例如 1500" />
+        </div>
+        <div class="field">
+          <label for="streamInput">流式输出</label>
+          <select id="streamInput">
+            <option value="true" selected>true</option>
+            <option value="false">false</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="refererInput">http-referer</label>
+          <input id="refererInput" type="text" value="https://cherry-ai.com" />
+        </div>
+        <div class="field">
+          <label for="titleHeaderInput">x-title</label>
+          <input id="titleHeaderInput" type="text" value="Cherry Studio" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="customHeaderInput">额外 Headers（JSON，可空）</label>
+        <textarea id="customHeaderInput" placeholder='例如：{"x-foo":"bar"}'></textarea>
+      </div>
+
+      <div class="field">
+        <label for="promptInput">自定义提示语</label>
+        <textarea id="promptInput">请根据以下浏览记录聚类，客观总结“我今天干了什么”。要求：
+1) 按主题分组（例如开发、调研、运维、沟通）；
+2) 给出简明时间线；
+3) 标注高频网站与可能任务目标；
+4) 给出一句话总结。</textarea>
+      </div>
+
+      <div class="btn-row">
+        <button id="summarizeBtn" disabled>调用 LLM 总结</button>
+        <button id="analyzeSummarizeBtn" disabled>一键分析并总结</button>
+      </div>
+
+      <hr style="border-color:var(--line);border-width:1px 0 0;margin:12px 0;" />
+
+      <h2>多天批量总结</h2>
+      <div class="grid-2">
+        <div class="field field-date" id="batchStartWrap">
+          <label for="batchStartInput">开始日期</label>
+          <input id="batchStartInput" type="date" />
+        </div>
+        <div class="field field-date" id="batchEndWrap">
+          <label for="batchEndInput">结束日期</label>
+          <input id="batchEndInput" type="date" />
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="batchSummarizeBtn" disabled>批量总结区间</button>
+        <button id="exportBatchBtn" disabled>导出批量总结</button>
+      </div>
+
+      <p id="statusText" class="tiny">状态：等待导入历史 JSON</p>
+    </aside>
+
+    <main class="right">
+      <section class="card">
+        <h2>当天概览</h2>
+        <div id="stats" class="stats"></div>
+      </section>
+
+      <section class="card">
+        <h2>聚类结果</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px;">#</th>
+                <th style="width:90px;">访问次数</th>
+                <th>聚类键</th>
+                <th style="width:140px;">首访</th>
+                <th style="width:140px;">末访</th>
+                <th>示例标题</th>
+                <th>示例链接</th>
+              </tr>
+            </thead>
+            <tbody id="clusterTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="summary-head">
+          <h2>总结输出</h2>
+          <button id="copySummaryBtn" class="btn-small" type="button">复制总结文本</button>
+        </div>
+        <details open>
+          <summary>LLM 总结文本</summary>
+          <pre id="summaryOutput">尚未生成总结。</pre>
+        </details>
+        <details>
+          <summary>用于总结的上下文（可核对）</summary>
+          <pre id="contextOutput">尚未生成上下文。</pre>
+        </details>
+        <details>
+          <summary>批量总结结果</summary>
+          <pre id="batchOutput" class="batch-output">尚未生成批量总结。</pre>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      rawRecords: [],
+      normalized: [],
+      dates: [],
+      dateToRecords: new Map(),
+      currentDate: null,
+      currentDayRecords: [],
+      currentClusters: [],
+      currentContext: null,
+      batchResults: [],
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      fileInput: $("fileInput"),
+      timezoneInput: $("timezoneInput"),
+      dateInput: $("dateInput"),
+      clusterMode: $("clusterMode"),
+      analyzeBtn: $("analyzeBtn"),
+      exportCtxBtn: $("exportCtxBtn"),
+      summarizeBtn: $("summarizeBtn"),
+      analyzeSummarizeBtn: $("analyzeSummarizeBtn"),
+      batchSummarizeBtn: $("batchSummarizeBtn"),
+      exportBatchBtn: $("exportBatchBtn"),
+      statusText: $("statusText"),
+      stats: $("stats"),
+      clusterTableBody: $("clusterTableBody"),
+      contextOutput: $("contextOutput"),
+      summaryOutput: $("summaryOutput"),
+      batchOutput: $("batchOutput"),
+      copySummaryBtn: $("copySummaryBtn"),
+      dateFieldWrap: $("dateFieldWrap"),
+      batchStartWrap: $("batchStartWrap"),
+      batchEndWrap: $("batchEndWrap"),
+      batchStartInput: $("batchStartInput"),
+      batchEndInput: $("batchEndInput"),
+
+      endpointInput: $("endpointInput"),
+      apiKeyInput: $("apiKeyInput"),
+      modelInput: $("modelInput"),
+      temperatureInput: $("temperatureInput"),
+      maxTokensInput: $("maxTokensInput"),
+      streamInput: $("streamInput"),
+      refererInput: $("refererInput"),
+      titleHeaderInput: $("titleHeaderInput"),
+      customHeaderInput: $("customHeaderInput"),
+      promptInput: $("promptInput"),
+    };
+
+    function setStatus(msg, cls = "") {
+      els.statusText.textContent = `状态：${msg}`;
+      els.statusText.className = `tiny ${cls}`.trim();
+    }
+
+    function normalizeVisitTime(v) {
+      if (v === null || v === undefined || v === "") return null;
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      if (n > 1e14) return n / 1000;   // 微秒 -> 毫秒
+      if (n < 1e11) return n * 1000;   // 秒 -> 毫秒
+      return n;
+    }
+
+    function parseUrl(url) {
+      try {
+        const u = new URL(url || "");
+        const path = u.pathname || "/";
+        return {
+          host: u.hostname || "(empty-host)",
+          path,
+          fullUrl: u.href,
+        };
+      } catch {
+        return {
+          host: "(invalid-url)",
+          path: "",
+          fullUrl: url || "",
+        };
+      }
+    }
+
+    function getDateParts(ms, timeZone) {
+      const dtf = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+
+      const parts = {};
+      for (const p of dtf.formatToParts(new Date(ms))) {
+        if (p.type !== "literal") parts[p.type] = p.value;
+      }
+
+      const date = `${parts.year}-${parts.month}-${parts.day}`;
+      const time = `${parts.hour}:${parts.minute}:${parts.second}`;
+      return { date, time };
+    }
+
+    function buildDateIndex(records, timeZone) {
+      const dateToRecords = new Map();
+
+      for (const rec of records) {
+        const ms = normalizeVisitTime(rec.visitTime ?? rec.lastVisitTime ?? rec.time);
+        if (!ms) continue;
+        const { date, time } = getDateParts(ms, timeZone);
+        const p = parseUrl(rec.url || rec.uri || "");
+        const norm = {
+          ms,
+          date,
+          time,
+          title: (rec.title || "(无标题)").toString().trim() || "(空标题)",
+          url: rec.url || rec.uri || "",
+          host: p.host,
+          path: p.path,
+          fullUrl: p.fullUrl,
+          transition: rec.transition || "(unknown)",
+          raw: rec,
+        };
+
+        if (!dateToRecords.has(date)) dateToRecords.set(date, []);
+        dateToRecords.get(date).push(norm);
+      }
+
+      for (const arr of dateToRecords.values()) {
+        arr.sort((a, b) => a.ms - b.ms);
+      }
+
+      const dates = [...dateToRecords.keys()].sort();
+      return { dates, dateToRecords };
+    }
+
+    function getClusterKey(r, mode) {
+      if (mode === "host") return r.host;
+      if (mode === "fullUrl") return r.fullUrl || `${r.host}${r.path}`;
+      return `${r.host}${r.path}`;
+    }
+
+    function clusterDayRecords(dayRecords, mode) {
+      const map = new Map();
+
+      for (const r of dayRecords) {
+        const key = getClusterKey(r, mode);
+        if (!map.has(key)) {
+          map.set(key, {
+            key,
+            count: 0,
+            firstMs: r.ms,
+            lastMs: r.ms,
+            firstTime: r.time,
+            lastTime: r.time,
+            sampleTitle: r.title,
+            sampleUrl: r.url,
+            host: r.host,
+            titles: new Map(),
+            transitions: new Map(),
+          });
+        }
+
+        const g = map.get(key);
+        g.count += 1;
+        if (r.ms < g.firstMs) {
+          g.firstMs = r.ms;
+          g.firstTime = r.time;
+        }
+        if (r.ms > g.lastMs) {
+          g.lastMs = r.ms;
+          g.lastTime = r.time;
+          g.sampleTitle = r.title;
+          g.sampleUrl = r.url;
+        }
+
+        g.titles.set(r.title, (g.titles.get(r.title) || 0) + 1);
+        g.transitions.set(r.transition, (g.transitions.get(r.transition) || 0) + 1);
+      }
+
+      const arr = [...map.values()].sort((a, b) => b.count - a.count || a.firstMs - b.firstMs);
+      return arr;
+    }
+
+    function getTop(mapLike, n = 5) {
+      return [...mapLike.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+    }
+
+    function renderStats(dayRecords, clusters) {
+      if (!dayRecords.length) {
+        els.stats.innerHTML = "<div class='stat'><div class='k'>提示</div><div class='v'>该日期无记录</div></div>";
+        return;
+      }
+
+      const hostCount = new Map();
+      const transitionCount = new Map();
+      const hourCount = Array(24).fill(0);
+
+      for (const r of dayRecords) {
+        hostCount.set(r.host, (hostCount.get(r.host) || 0) + 1);
+        transitionCount.set(r.transition, (transitionCount.get(r.transition) || 0) + 1);
+        const h = Number(r.time.slice(0, 2));
+        if (Number.isFinite(h)) hourCount[h] += 1;
+      }
+
+      const topHost = getTop(hostCount, 1)[0]?.[0] || "-";
+      const topHostCount = getTop(hostCount, 1)[0]?.[1] || 0;
+      const topTransition = getTop(transitionCount, 1)[0]?.[0] || "-";
+
+      let peakHour = "-";
+      let peakHourCount = 0;
+      for (let i = 0; i < 24; i++) {
+        if (hourCount[i] > peakHourCount) {
+          peakHourCount = hourCount[i];
+          peakHour = `${String(i).padStart(2, "0")}:00`;
+        }
+      }
+
+      const first = dayRecords[0];
+      const last = dayRecords[dayRecords.length - 1];
+
+      const cards = [
+        ["当天访问总数", String(dayRecords.length)],
+        ["聚类后网页数", String(clusters.length)],
+        ["首条时间", `${first.time} (${first.host})`],
+        ["末条时间", `${last.time} (${last.host})`],
+        ["最高频站点", `${topHost} (${topHostCount})`],
+        ["最高频转场", topTransition],
+        ["活跃峰值时段", `${peakHour} (${peakHourCount})`],
+      ];
+
+      els.stats.innerHTML = cards
+        .map(([k, v]) => `<div class='stat'><div class='k'>${escapeHtml(k)}</div><div class='v'>${escapeHtml(v)}</div></div>`)
+        .join("");
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function renderTable(clusters) {
+      if (!clusters.length) {
+        els.clusterTableBody.innerHTML = `<tr><td colspan="7" class="muted">该日期无可展示聚类结果</td></tr>`;
+        return;
+      }
+
+      els.clusterTableBody.innerHTML = clusters
+        .map((g, i) => {
+          const topTitle = getTop(g.titles, 1)[0]?.[0] || g.sampleTitle || "(无标题)";
+          const url = g.sampleUrl || "";
+          const shortUrl = url.length > 88 ? `${url.slice(0, 88)}...` : url;
+          const linkHtml = url
+            ? `<a class="mono" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(shortUrl)}</a>`
+            : `<span class="muted">-</span>`;
+
+          return `
+            <tr>
+              <td>${i + 1}</td>
+              <td><span class="pill">${g.count}</span></td>
+              <td class="mono">${escapeHtml(g.key)}</td>
+              <td>${escapeHtml(g.firstTime)}</td>
+              <td>${escapeHtml(g.lastTime)}</td>
+              <td>${escapeHtml(topTitle)}</td>
+              <td>${linkHtml}</td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    function buildContext(selectedDate, dayRecords, clusters) {
+      const topClusters = clusters.slice(0, 120).map((g) => ({
+        key: g.key,
+        count: g.count,
+        firstTime: g.firstTime,
+        lastTime: g.lastTime,
+        sampleTitle: g.sampleTitle,
+        sampleUrl: g.sampleUrl,
+        topTitles: getTop(g.titles, 3),
+        topTransitions: getTop(g.transitions, 3),
+      }));
+
+      const timeline = [];
+      let lastSig = "";
+      for (const r of dayRecords) {
+        const sig = `${r.host}|${r.title}|${r.path}`;
+        if (sig === lastSig) continue;
+        lastSig = sig;
+        timeline.push({
+          time: r.time,
+          host: r.host,
+          title: r.title,
+          url: r.url,
+          transition: r.transition,
+        });
+        if (timeline.length >= 240) break;
+      }
+
+      const hostCount = new Map();
+      for (const r of dayRecords) hostCount.set(r.host, (hostCount.get(r.host) || 0) + 1);
+
+      return {
+        date: selectedDate,
+        totalVisits: dayRecords.length,
+        totalClusters: clusters.length,
+        topHosts: getTop(hostCount, 20),
+        clusters: topClusters,
+        timeline,
+      };
+    }
+
+    function downloadText(filename, text) {
+      const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function readFileAsText(file) {
+      return await file.text();
+    }
+
+    function tryOpenDatePicker() {
+      const input = els.dateInput;
+      if (!input) return;
+      input.focus();
+      if (typeof input.showPicker === "function") {
+        try {
+          input.showPicker();
+          return;
+        } catch {
+          // ignore and fallback below
+        }
+      }
+    }
+
+    function rememberConfig() {
+      const data = {
+        timezone: els.timezoneInput.value,
+        selectedDate: els.dateInput.value,
+        clusterMode: els.clusterMode.value,
+        batchStart: els.batchStartInput.value,
+        batchEnd: els.batchEndInput.value,
+        endpoint: els.endpointInput.value,
+        apiKey: els.apiKeyInput.value,
+        model: els.modelInput.value,
+        temperature: els.temperatureInput.value,
+        maxTokens: els.maxTokensInput.value,
+        stream: els.streamInput.value,
+        referer: els.refererInput.value,
+        titleHeader: els.titleHeaderInput.value,
+        prompt: els.promptInput.value,
+        customHeaders: els.customHeaderInput.value,
+      };
+      localStorage.setItem("historySummaryConfig", JSON.stringify(data));
+    }
+
+    function loadConfig() {
+      const raw = localStorage.getItem("historySummaryConfig");
+      if (!raw) return;
+      try {
+        const c = JSON.parse(raw);
+        if (c.timezone) els.timezoneInput.value = c.timezone;
+        if (c.selectedDate) els.dateInput.value = c.selectedDate;
+        if (c.clusterMode) els.clusterMode.value = c.clusterMode;
+        if (c.batchStart) els.batchStartInput.value = c.batchStart;
+        if (c.batchEnd) els.batchEndInput.value = c.batchEnd;
+        if (c.endpoint) els.endpointInput.value = c.endpoint;
+        if (c.apiKey) els.apiKeyInput.value = c.apiKey;
+        if (c.model) els.modelInput.value = c.model;
+        if (c.temperature) els.temperatureInput.value = c.temperature;
+        if (c.maxTokens) els.maxTokensInput.value = c.maxTokens;
+        if (c.stream) els.streamInput.value = c.stream;
+        if (c.referer) els.refererInput.value = c.referer;
+        if (c.titleHeader) els.titleHeaderInput.value = c.titleHeader;
+        if (c.prompt) els.promptInput.value = c.prompt;
+        if (c.customHeaders) els.customHeaderInput.value = c.customHeaders;
+      } catch {
+        // ignore
+      }
+    }
+
+    function getRequestHeaders() {
+      const headers = {
+        "accept": "*/*",
+        "accept-language": "zh-CN",
+        "content-type": "application/json",
+      };
+
+      const token = els.apiKeyInput.value.trim();
+      if (token) headers["authorization"] = `Bearer ${token}`;
+
+      const referer = els.refererInput.value.trim();
+      if (referer) headers["http-referer"] = referer;
+
+      const xtitle = els.titleHeaderInput.value.trim();
+      if (xtitle) headers["x-title"] = xtitle;
+
+      const custom = els.customHeaderInput.value.trim();
+      if (custom) {
+        const extra = JSON.parse(custom);
+        if (extra && typeof extra === "object") {
+          for (const [k, v] of Object.entries(extra)) {
+            headers[k] = String(v);
+          }
+        }
+      }
+
+      return headers;
+    }
+
+    function buildLlmRequestBody(context) {
+      const prompt = (els.promptInput.value || "").trim();
+      if (!prompt) throw new Error("自定义提示语不能为空");
+
+      const body = {
+        model: els.modelInput.value.trim() || "qwen-3-235b-a22b-instruct-2507",
+        messages: [
+          {
+            role: "user",
+            content: `${prompt}\n\n以下是用于分析的数据(JSON)：\n${JSON.stringify(context, null, 2)}`,
+          },
+        ],
+        stream: els.streamInput.value === "true",
+      };
+
+      const temperature = Number(els.temperatureInput.value);
+      if (Number.isFinite(temperature)) body.temperature = temperature;
+
+      const maxTokens = Number(els.maxTokensInput.value);
+      if (Number.isFinite(maxTokens) && maxTokens > 0) body.max_tokens = maxTokens;
+
+      return body;
+    }
+
+    async function requestLlmSummary(context, onDelta) {
+      const endpoint = els.endpointInput.value.trim();
+      if (!endpoint) throw new Error("Endpoint 不能为空");
+
+      const headers = getRequestHeaders();
+      const body = buildLlmRequestBody(context);
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        mode: "cors",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 500)}`);
+      }
+
+      if (body.stream && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let fullText = "";
+        let buf = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split(/\r?\n/);
+          buf = lines.pop() || "";
+
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line || !line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (payload === "[DONE]") continue;
+
+            try {
+              const obj = JSON.parse(payload);
+              const delta = obj?.choices?.[0]?.delta?.content ?? obj?.choices?.[0]?.message?.content ?? "";
+              if (delta) {
+                fullText += delta;
+                if (onDelta) onDelta(fullText);
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        return fullText || "流式返回为空。";
+      }
+
+      const data = await res.json();
+      return data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || JSON.stringify(data, null, 2);
+    }
+
+    async function fetchSummary() {
+      const ok = analyze();
+      if (!ok || !state.currentContext) return;
+
+      rememberConfig();
+      els.summarizeBtn.disabled = true;
+      els.analyzeSummarizeBtn.disabled = true;
+      els.summaryOutput.textContent = "正在请求 LLM...";
+
+      try {
+        setStatus("LLM 请求中...", "warn");
+        const text = await requestLlmSummary(state.currentContext, (partial) => {
+          els.summaryOutput.textContent = partial;
+        });
+        els.summaryOutput.textContent = text;
+
+        setStatus("LLM 总结完成", "ok");
+      } catch (err) {
+        console.error(err);
+        els.summaryOutput.textContent = `LLM 调用失败：${err.message || err}`;
+        setStatus("LLM 调用失败，请检查 CORS / API Key / Endpoint", "bad");
+      } finally {
+        els.summarizeBtn.disabled = false;
+        els.analyzeSummarizeBtn.disabled = false;
+      }
+    }
+
+    function analyze() {
+      try {
+        const selectedDate = els.dateInput.value;
+        if (!selectedDate) throw new Error("请先选择日期");
+        state.currentDate = selectedDate;
+
+        const dayRecords = state.dateToRecords.get(selectedDate) || [];
+        state.currentDayRecords = dayRecords;
+
+        const clusters = clusterDayRecords(dayRecords, els.clusterMode.value);
+        state.currentClusters = clusters;
+
+        renderStats(dayRecords, clusters);
+        renderTable(clusters);
+
+        const context = buildContext(selectedDate, dayRecords, clusters);
+        state.currentContext = context;
+        els.contextOutput.textContent = JSON.stringify(context, null, 2);
+
+        els.exportCtxBtn.disabled = false;
+        els.summarizeBtn.disabled = dayRecords.length === 0;
+
+        setStatus(`分析完成：${selectedDate}，记录 ${dayRecords.length} 条，聚类 ${clusters.length} 组`, "ok");
+        return true;
+      } catch (err) {
+        setStatus(`分析失败：${err.message || err}`, "bad");
+        return false;
+      }
+    }
+
+    async function analyzeAndSummarize() {
+      await fetchSummary();
+    }
+
+    function getDatesInRange(startDate, endDate) {
+      if (!startDate || !endDate) return [];
+      const s = startDate <= endDate ? startDate : endDate;
+      const e = startDate <= endDate ? endDate : startDate;
+      return state.dates.filter((d) => d >= s && d <= e);
+    }
+
+    async function batchSummarizeRange() {
+      if (!state.rawRecords.length) {
+        setStatus("请先导入历史 JSON", "warn");
+        return;
+      }
+
+      const start = els.batchStartInput.value;
+      const end = els.batchEndInput.value;
+      const targetDates = getDatesInRange(start, end);
+      if (!targetDates.length) {
+        setStatus("区间内无可总结日期", "warn");
+        return;
+      }
+
+      rememberConfig();
+      els.batchSummarizeBtn.disabled = true;
+      els.exportBatchBtn.disabled = true;
+      els.batchOutput.textContent = "批量总结进行中...";
+      state.batchResults = [];
+
+      try {
+        for (let i = 0; i < targetDates.length; i++) {
+          const date = targetDates[i];
+          const dayRecords = state.dateToRecords.get(date) || [];
+          const clusters = clusterDayRecords(dayRecords, els.clusterMode.value);
+          const context = buildContext(date, dayRecords, clusters);
+          setStatus(`批量总结中 (${i + 1}/${targetDates.length})：${date}`, "warn");
+
+          let summary = "";
+          let error = "";
+          try {
+            summary = await requestLlmSummary(context);
+          } catch (err) {
+            error = err?.message || String(err);
+          }
+
+          state.batchResults.push({
+            date,
+            totalVisits: dayRecords.length,
+            totalClusters: clusters.length,
+            summary,
+            error,
+          });
+
+          els.batchOutput.textContent = state.batchResults
+            .map((r, idx) => {
+              const head = `# ${idx + 1} ${r.date} | visits=${r.totalVisits} | clusters=${r.totalClusters}`;
+              const body = r.error ? `ERROR: ${r.error}` : (r.summary || "(空)");
+              return `${head}\n${body}`;
+            })
+            .join("\n\n------------------------------\n\n");
+        }
+
+        els.exportBatchBtn.disabled = state.batchResults.length === 0;
+        setStatus(`批量总结完成，共 ${state.batchResults.length} 天`, "ok");
+      } catch (err) {
+        setStatus(`批量总结失败：${err?.message || err}`, "bad");
+      } finally {
+        els.batchSummarizeBtn.disabled = false;
+      }
+    }
+
+    function exportBatchResults() {
+      if (!state.batchResults.length) return;
+      const text = state.batchResults
+        .map((r) => {
+          const head = `## ${r.date} (visits=${r.totalVisits}, clusters=${r.totalClusters})`;
+          const body = r.error ? `ERROR: ${r.error}` : (r.summary || "(空)");
+          return `${head}\n\n${body}`;
+        })
+        .join("\n\n---\n\n");
+      downloadText(`batch-summary-${els.batchStartInput.value || "start"}-${els.batchEndInput.value || "end"}.md`, text);
+    }
+
+    async function onLoadFile() {
+      const file = els.fileInput.files?.[0];
+      if (!file) return;
+
+      setStatus("正在读取文件...", "warn");
+
+      try {
+        const txt = await readFileAsText(file);
+        const data = JSON.parse(txt);
+        if (!Array.isArray(data)) throw new Error("JSON 根节点必须是数组");
+
+        state.rawRecords = data;
+        const tz = els.timezoneInput.value.trim() || "Asia/Shanghai";
+        const { dates, dateToRecords } = buildDateIndex(data, tz);
+
+        state.dates = dates;
+        state.dateToRecords = dateToRecords;
+
+        if (!dates.length) throw new Error("未解析到可用 visitTime");
+
+        els.dateInput.min = dates[0];
+        els.dateInput.max = dates[dates.length - 1];
+
+        let selected = dates[dates.length - 1];
+        try {
+          const saved = JSON.parse(localStorage.getItem("historySummaryConfig") || "{}");
+          if (saved.selectedDate && dateToRecords.has(saved.selectedDate)) {
+            selected = saved.selectedDate;
+          }
+        } catch {
+          // ignore
+        }
+        els.dateInput.value = selected;
+        rememberConfig();
+
+        els.analyzeBtn.disabled = false;
+        els.summarizeBtn.disabled = true;
+        els.analyzeSummarizeBtn.disabled = false;
+        els.exportCtxBtn.disabled = true;
+        els.batchSummarizeBtn.disabled = false;
+        els.exportBatchBtn.disabled = true;
+        els.clusterTableBody.innerHTML = "";
+        els.stats.innerHTML = "";
+        els.contextOutput.textContent = "尚未生成上下文。";
+        els.summaryOutput.textContent = "尚未生成总结。";
+        els.batchOutput.textContent = "尚未生成批量总结。";
+
+        els.batchStartInput.min = dates[0];
+        els.batchStartInput.max = dates[dates.length - 1];
+        els.batchEndInput.min = dates[0];
+        els.batchEndInput.max = dates[dates.length - 1];
+
+        const saved = JSON.parse(localStorage.getItem("historySummaryConfig") || "{}");
+        const savedStart = saved.batchStart;
+        const savedEnd = saved.batchEnd;
+        els.batchStartInput.value = (savedStart && dateToRecords.has(savedStart)) ? savedStart : dates[0];
+        els.batchEndInput.value = (savedEnd && dateToRecords.has(savedEnd)) ? savedEnd : dates[dates.length - 1];
+
+        analyze();
+
+        setStatus(`导入成功：共 ${data.length} 条，日期范围 ${dates[0]} ~ ${dates[dates.length - 1]}`, "ok");
+      } catch (err) {
+        console.error(err);
+        setStatus(`导入失败：${err.message || err}`, "bad");
+      }
+    }
+
+    function bindEvents() {
+      els.fileInput.addEventListener("change", onLoadFile);
+      els.analyzeBtn.addEventListener("click", analyze);
+      els.analyzeSummarizeBtn.addEventListener("click", analyzeAndSummarize);
+      els.batchSummarizeBtn.addEventListener("click", batchSummarizeRange);
+      els.exportBatchBtn.addEventListener("click", exportBatchResults);
+      els.dateFieldWrap.addEventListener("click", (e) => {
+        if (e.target === els.dateInput || e.target === els.dateFieldWrap || e.target.tagName === "LABEL") {
+          tryOpenDatePicker();
+        }
+      });
+      els.batchStartWrap.addEventListener("click", () => {
+        els.batchStartInput.focus();
+        if (typeof els.batchStartInput.showPicker === "function") {
+          try { els.batchStartInput.showPicker(); } catch {}
+        }
+      });
+      els.batchEndWrap.addEventListener("click", () => {
+        els.batchEndInput.focus();
+        if (typeof els.batchEndInput.showPicker === "function") {
+          try { els.batchEndInput.showPicker(); } catch {}
+        }
+      });
+
+      els.dateInput.addEventListener("change", () => {
+        rememberConfig();
+        if (state.rawRecords.length) analyze();
+      });
+
+      els.batchStartInput.addEventListener("change", rememberConfig);
+      els.batchEndInput.addEventListener("change", rememberConfig);
+
+      els.clusterMode.addEventListener("change", () => {
+        rememberConfig();
+        if (state.rawRecords.length) analyze();
+      });
+
+      els.timezoneInput.addEventListener("change", () => {
+        rememberConfig();
+        if (!state.rawRecords.length) return;
+        try {
+          const { dates, dateToRecords } = buildDateIndex(state.rawRecords, els.timezoneInput.value.trim() || "Asia/Shanghai");
+          state.dates = dates;
+          state.dateToRecords = dateToRecords;
+          if (dates.length) {
+            els.dateInput.min = dates[0];
+            els.dateInput.max = dates[dates.length - 1];
+            if (!dateToRecords.has(els.dateInput.value)) {
+              els.dateInput.value = dates[dates.length - 1];
+            }
+          }
+          analyze();
+          setStatus("已按新时区重建索引并自动完成分析", "ok");
+        } catch (err) {
+          setStatus(`时区处理失败：${err.message || err}`, "bad");
+        }
+      });
+
+      els.exportCtxBtn.addEventListener("click", () => {
+        if (!state.currentContext) return;
+        downloadText(`history-context-${state.currentDate || "unknown"}.json`, JSON.stringify(state.currentContext, null, 2));
+      });
+
+      els.copySummaryBtn.addEventListener("click", async () => {
+        const text = els.summaryOutput.textContent || "";
+        try {
+          await navigator.clipboard.writeText(text);
+          setStatus("已复制总结文本", "ok");
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          setStatus("已复制总结文本（兼容模式）", "ok");
+        }
+      });
+
+      els.summarizeBtn.addEventListener("click", fetchSummary);
+
+      [
+        els.endpointInput,
+        els.apiKeyInput,
+        els.modelInput,
+        els.temperatureInput,
+        els.maxTokensInput,
+        els.streamInput,
+        els.refererInput,
+        els.titleHeaderInput,
+        els.customHeaderInput,
+        els.promptInput,
+      ].forEach((el) => {
+        el.addEventListener("change", rememberConfig);
+        el.addEventListener("blur", rememberConfig);
+        el.addEventListener("input", rememberConfig);
+      });
+
+      rememberConfig();
+    }
+
+    loadConfig();
+    bindEvents();
+  </script>
+</body>
+</html>
