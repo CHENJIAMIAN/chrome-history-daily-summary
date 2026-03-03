@@ -6,7 +6,7 @@
 
 部署到 GitHub Pages 后可直接访问：
 
-- `https://<你的GitHub用户名>.github.io/<仓库名>/`
+- <https://chenjiamian.github.io/chrome-history-daily-summary/>
 
 ## 效果图
 
