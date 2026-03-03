@@ -20,7 +20,7 @@
 
 ## history.json 来源
 
-建议使用 Chrome 扩展导出：
+必须使用 Chrome 扩展导出：
 
 - Export Chrome History  
   <https://chromewebstore.google.com/detail/export-chrome-history/dihloblpkeiddiaojbagoecedbfpifdj>
